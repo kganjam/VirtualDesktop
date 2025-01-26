@@ -1,6 +1,8 @@
 @echo off
 :: Markus Scholtes, 2024
 :: Compile VirtualDesktop in .Net 4.x environment
+:: The .Net 4.x environment is required to compile the VirtualDesktop source code
+:: 5.0 introduced a breaking change to WinRT interface marshalling
 setlocal
 
 @REM C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe "%~dp0VirtualDesktop11.cs" /win32icon:"%~dp0MScholtes.ico"
@@ -16,4 +18,5 @@ echo "%CMDCMDLINE%" | find /i "/c" > nul
 dotnet build
 
 @REM copy *.exe C:\Users\kganjam\OneDrive\Git\Utilities\bin\
-copy /y C:\Users\kganjam\OneDrive\Git\VirtualDesktop\bin\Debug\net8.0\* C:\Users\kganjam\OneDrive\Git\Utilities\bin\
+copy /y C:\Users\kganjam\OneDrive\Git\VirtualDesktop\bin\Debug\net4.8\* C:\Users\kganjam\OneDrive\Git\Utilities\bin\
+cmd /c mklink C:\Users\kganjam\OneDrive\Git\Utilities\bin\vd.exe C:\Users\kganjam\OneDrive\Git\Utilities\bin\VirtualDesktop.exe 2> nul

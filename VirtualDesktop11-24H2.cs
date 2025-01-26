@@ -408,7 +408,10 @@ namespace VirtualDesktop
 			{
 				desktopName = DesktopManager.GetDesktop(index).GetName();
 			}
-			catch { }
+			catch (Exception e)
+			{
+				Console.WriteLine(e);
+			}
 
 			// no name found, generate generic name
 			if (string.IsNullOrEmpty(desktopName))
@@ -425,9 +428,7 @@ namespace VirtualDesktop
 			string desktopName = null;
 			try
 			{
-				Console.WriteLine("DesktopManager.GetDesktop(index): " + DesktopManager.GetDesktop(index));
 				desktopName = DesktopManager.GetDesktop(index).GetName();
-				Console.WriteLine("desktopName: " + desktopName);
 			}
 			catch { }
 
@@ -701,7 +702,7 @@ namespace VDeskTool
 {
 	static class Program
 	{
-		static bool verbose = true;
+		static bool verbose = false;
 		static bool breakonerror = true;
 		static bool wrapdesktops = false;
 		static int rc = 0;
@@ -959,7 +960,40 @@ namespace VDeskTool
 							case "LW":
 								try
 								{
-									ListWindowsOnDesktop(0, verbose = true);
+									ListWindowsOnDesktop(0, detailed: false, verbose: true);
+								}
+								catch
+								{ // error while listing
+									Console.WriteLine();
+									rc = -1;
+								}
+								break;
+
+							case "LISTSNAPSHOTS": // list window handles of windows shown on desktop in rc
+							case "LS":
+								try
+								{
+									var path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\VirtualDesktop";
+									if (!Directory.Exists(path))
+									{
+										Console.WriteLine("No snapshots found.");
+										break;
+									}
+
+									var files = Directory.GetFiles(path, "snapshot_*.json");
+									if (files.Length == 0)
+									{
+										Console.WriteLine("No snapshots found.");
+										break;
+									}
+
+									Array.Sort(files, (x, y) => File.GetCreationTime(y).CompareTo(File.GetCreationTime(x)));
+
+									Console.WriteLine("Snapshots:");
+									foreach (var file in files.Take(3))
+									{
+										Console.WriteLine(file);
+									}
 								}
 								catch
 								{ // error while listing
@@ -973,7 +1007,7 @@ namespace VDeskTool
 								try
 								{
 									// list window handles on desktop rc
-									var windowInfos = ListWindowsOnDesktop(0, verbose = true);
+									var windowInfos = ListWindowsOnDesktop(0, detailed: true, verbose: false);
 
 									// set directory to user app settings for virtual desktop. create folder if not exists
 									string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\VirtualDesktop";
@@ -2484,8 +2518,16 @@ namespace VDeskTool
 			{
 				int iDesktopIndex = VirtualDesktop.Desktop.FromDesktop(VirtualDesktop.Desktop.FromWindow(hWnd));
 				if (iDesktopIndex == iListDesktop) Console.WriteLine(hWnd.ToInt32());
+
+				windowList.Add(
+					new WindowInfo
+					{
+						DesktopIndex = iDesktopIndex,
+						WindowHandle = hWnd.ToInt32()
+					});
 			}
 			catch { }
+
 
 			return true;
 		}
@@ -2502,52 +2544,29 @@ namespace VDeskTool
 
 		static List<WindowInfo> windowList = new List<WindowInfo>();
 
-		private static bool EnumWindowsProcToListVerbose(IntPtr hWnd, int lParam)
+		static Lazy<Dictionary<int, Process>> processes = new Lazy<Dictionary<int, Process>>(() => Process.GetProcesses().ToDictionary(p => p.Id));
+
+		private static bool EnumWindowsProcToListDetailed(IntPtr hWnd, int lParam, bool verbose = false)
 		{
 			string delimiter = "\t";
 			try
 			{
-
 				// skip if window is not a top level window
 				//if (Desktop.GetWindow(hWnd, GW_OWNER) != IntPtr.Zero) return true;
 
-				// skip if window is not visible
 				if (!IsWindowVisible(hWnd)) return true;
 
 				int iDesktopIndex = VirtualDesktop.Desktop.FromDesktop(VirtualDesktop.Desktop.FromWindow(hWnd));
+				var desktopName = VirtualDesktop.Desktop.DesktopNameFromIndex(iDesktopIndex);
 
-				Console.Write(iDesktopIndex);
-
-				string desktopName = "";
-				if (VirtualDesktop.Desktop.HasDesktopNameFromIndex(iDesktopIndex))
-					desktopName = VirtualDesktop.Desktop.DesktopNameFromIndex(iDesktopIndex);
-				else
-					desktopName = "Desktop " + iDesktopIndex;
-
-				Console.Write(delimiter + desktopName);
-				Console.Write(delimiter + hWnd.ToInt32());
-
-				// Print the process name
-				int processId;
+				int processId = 0;
 				Desktop.GetWindowThreadProcessId(hWnd, out processId);
-				Process p = Process.GetProcessById((int)processId);
-				Console.Write(delimiter + p.ProcessName);
-				Console.Write(delimiter + processId);
+				Process p = processes.Value[(int)processId];
 
-
-				// Print the window title
 				StringBuilder windowText = new StringBuilder(MAXTITLE);
 				int titleLength = GetWindowText(hWnd, windowText, windowText.Capacity + 1);
 				windowText.Length = titleLength;
 				string title = windowText.ToString();
-				Console.Write(delimiter + title);
-
-				if (title.Contains("?"))
-				{
-					Console.WriteLine("\n***");
-				}
-
-				Console.WriteLine();
 
 				windowList.Add(
 					new WindowInfo
@@ -2559,24 +2578,35 @@ namespace VDeskTool
 						ProcessId = processId,
 						WindowTitle = title
 					});
+
+				if (verbose)
+				{
+					Console.Write(iDesktopIndex);
+					Console.Write(delimiter + desktopName);
+					Console.Write(delimiter + hWnd.ToInt32());
+					Console.Write(delimiter + p.ProcessName);
+					Console.Write(delimiter + processId);
+					Console.Write(delimiter + title);
+					Console.WriteLine();
+				}
 			}
 			catch { }
 
 			return true;
 		}
 
-		private static List<WindowInfo> ListWindowsOnDesktop(int DesktopIndex, bool verbose = false)
+		private static List<WindowInfo> ListWindowsOnDesktop(int DesktopIndex, bool detailed = false, bool verbose = false)
 		{
 			iListDesktop = DesktopIndex;
 			windowList = new List<WindowInfo>();
 
-			EnumDelegate enumfunc = verbose ? new EnumDelegate(EnumWindowsProcToListVerbose) : new EnumDelegate(EnumWindowsProcToList);
-
+			EnumDelegate enumfunc = detailed ?
+				new EnumDelegate((hWnd, lParam) => EnumWindowsProcToListDetailed(hWnd, lParam, verbose)) :
+				new EnumDelegate(EnumWindowsProcToList);
 			EnumDesktopWindows(IntPtr.Zero, enumfunc, IntPtr.Zero);
 
 			return windowList;
 		}
-
 
 		// RestoreWindows function that takes a list of windowInfo
 		public static void RestoreWindows(List<WindowInfo> windowInfos)
@@ -2588,33 +2618,40 @@ namespace VDeskTool
 					// Move the window to the correct desktop
 					Desktop desktop = Desktop.FromIndex(windowInfo.DesktopIndex);
 
-					Console.WriteLine("Restoring window1: " + windowInfo.WindowTitle);
+					//Console.WriteLine("Restoring window1: " + windowInfo.WindowTitle);
 
 					// seeking window with window title
 					var iParam = (Int32)GetWindowFromTitle(windowInfo.WindowTitle.Trim().Replace("^", ""));
 
-					Console.WriteLine("Restoring window2: " + iParam + " " + windowInfo.DesktopIndex + " " + windowInfo.WindowTitle);
+					if (iParam <= 0)
+					{
+						Console.WriteLine("Window with text '" + windowInfo.WindowTitle + "' in title not found");
+						continue;
+					}
+					//Console.WriteLine("Restoring window2: " + iParam + " " + windowInfo.DesktopIndex + " " + windowInfo.WindowTitle);
 
 
 					// parameter is a string, search as part of desktop name
 					var iParamDesktop = VirtualDesktop.Desktop.SearchDesktop(windowInfo.DesktopName);
 					if (iParamDesktop >= 0)
-					{ // desktop found
+					{ 
+						// desktop found
 						if (verbose) Console.WriteLine("Virtual desktop number " + iParamDesktop.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParamDesktop) + "') selected");
-						rc = iParamDesktop;
 					}
 					else
-					{ // no desktop found
+					{ 
+						// no desktop found
 						if ((windowInfo.DesktopName.ToUpper() == "LAST") || (windowInfo.DesktopName.ToUpper() == "*LAST*"))
-						{ // last desktop
+						{ 
+							// last desktop
 							iParam = VirtualDesktop.Desktop.Count - 1;
 							if (verbose) Console.WriteLine("Virtual desktop number " + iParamDesktop.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParamDesktop) + "') selected");
-							rc = iParamDesktop;
 						}
 						else
-						{ // no desktop found
+						{ 
+							// no desktop found
 							if (verbose) Console.WriteLine("Could not find virtual desktop with name containing '" + windowInfo.DesktopName + "'");
-							rc = -2;
+							continue;
 						}
 					}
 ;
@@ -2623,12 +2660,12 @@ namespace VDeskTool
 					// move window
 					VirtualDesktop.Desktop.FromIndex(windowInfo.DesktopIndex).MoveWindow((IntPtr)iParam);
 					if (verbose) Console.WriteLine("Window (" + (IntPtr)iParam + ") " + "'" + foundTitle + "' moved to desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
-									
+
 					Console.WriteLine("Restored window: " + windowInfo.WindowTitle);
 				}
 				catch (Exception e)
 				{
-					Console.WriteLine("Error moving window: " + e.Message);
+					Console.WriteLine($"Error moving window with title '{windowInfo.WindowTitle}': " + e.Message);
 
 					// If the window is not found, skip it
 					continue;

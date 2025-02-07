@@ -1759,9 +1759,12 @@ namespace VDeskTool
 								}
 								else
 								{
+									// BUG: is this searching for window title or process name??
+									Console.WriteLine("Searching for window with title '" + groups[2].Value + "'");
 									try
 									{ // seeking desktop for process name
 										iParam = GetMainWindowHandle(groups[2].Value.Trim());
+										Console.WriteLine("Window handle: " + iParam.ToString());
 										rc = VirtualDesktop.Desktop.FromDesktop(VirtualDesktop.Desktop.FromWindow((IntPtr)iParam));
 										if (verbose) Console.WriteLine("Window of process '" + groups[2].Value + "' is on desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
 									}
@@ -1797,10 +1800,11 @@ namespace VDeskTool
 								{
 									try
 									{ // seeking window with window title
-										iParam = (Int32)GetWindowFromTitle(groups[2].Value.Trim().Replace("^", ""));
+										var windowInfos = GetWindowInfosFromTitle(groups[2].Value.Trim().Replace("^", ""));
+
 										// seeking desktop for window handle
-										rc = VirtualDesktop.Desktop.FromDesktop(VirtualDesktop.Desktop.FromWindow((IntPtr)iParam));
-										if (verbose) Console.WriteLine("Window '" + foundTitle + "' is on desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
+										rc = VirtualDesktop.Desktop.FromDesktop(VirtualDesktop.Desktop.FromWindow((IntPtr)windowInfos[0].WindowHandle));
+										if (verbose) Console.WriteLine("Window '" + windowInfos[0].WindowTitle + "' is on desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
 									}
 									catch
 									{ // error while seeking
@@ -1896,16 +1900,16 @@ namespace VDeskTool
 								{
 									try
 									{ // seeking window with window title
-										iParam = (Int32)GetWindowFromTitle(groups[2].Value.Trim().Replace("^", ""));
+										var windowInfos = GetWindowInfosFromTitle(groups[2].Value.Trim().Replace("^", ""));
 										// checking desktop for window handle
-										if (VirtualDesktop.Desktop.FromIndex(rc).HasWindow((IntPtr)iParam))
+										if (VirtualDesktop.Desktop.FromIndex(rc).HasWindow((IntPtr)windowInfos[0].WindowHandle))
 										{
-											if (verbose) Console.WriteLine("Window '" + foundTitle + "' is on desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
+											if (verbose) Console.WriteLine("Window '" + windowInfos[0].WindowTitle + "' is on desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
 											rc = 0;
 										}
 										else
 										{
-											if (verbose) Console.WriteLine("Window '" + foundTitle + "' is not on desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
+											if (verbose) Console.WriteLine("Window '" + windowInfos[0].WindowTitle + "' is not on desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
 											rc = 1;
 										}
 									}
@@ -1981,10 +1985,10 @@ namespace VDeskTool
 								{
 									try
 									{ // seeking window with window title
-										iParam = (Int32)GetWindowFromTitle(groups[2].Value.Trim().Replace("^", ""));
+										var windowInfos = GetWindowInfosFromTitle(groups[2].Value.Trim().Replace("^", ""));
 										// move window
-										VirtualDesktop.Desktop.FromIndex(rc).MoveWindow((IntPtr)iParam);
-										if (verbose) Console.WriteLine("Window (" + (IntPtr)iParam + ") " + "'" + foundTitle + "' moved to desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
+										VirtualDesktop.Desktop.FromIndex(rc).MoveWindow((IntPtr)windowInfos[0].WindowHandle);
+										if (verbose) Console.WriteLine("Window (" + (IntPtr)windowInfos[0].WindowHandle + ") " + "'" + windowInfos[0].WindowTitle + "' moved to desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
 									}
 									catch
 									{ // error while seeking
@@ -2080,15 +2084,15 @@ namespace VDeskTool
 								{
 									try
 									{ // seeking window with window title
-										iParam = (Int32)GetWindowFromTitle(groups[2].Value.Trim().Replace("^", ""));
-										if (VirtualDesktop.Desktop.IsWindowPinned((IntPtr)iParam))
+										var windowInfos = GetWindowInfosFromTitle(groups[2].Value.Trim().Replace("^", ""));
+										if (VirtualDesktop.Desktop.IsWindowPinned((IntPtr)windowInfos[0].WindowHandle))
 										{
-											if (verbose) Console.WriteLine("Window '" + foundTitle + "' is pinned to all desktops");
+											if (verbose) Console.WriteLine("Window '" + windowInfos[0].WindowTitle + "' is pinned to all desktops");
 											rc = 0;
 										}
 										else
 										{
-											if (verbose) Console.WriteLine("Window '" + foundTitle + "' is not pinned to all desktops");
+											if (verbose) Console.WriteLine("Window '" + windowInfos[0].WindowTitle + "' is not pinned to all desktops");
 											rc = 1;
 										}
 									}
@@ -2163,10 +2167,10 @@ namespace VDeskTool
 								{
 									try
 									{ // seeking window with window title
-										iParam = (Int32)GetWindowFromTitle(groups[2].Value.Trim().Replace("^", ""));
+										var windowInfos = GetWindowInfosFromTitle(groups[2].Value.Trim().Replace("^", ""));
 										// pin window
-										VirtualDesktop.Desktop.PinWindow((IntPtr)iParam);
-										if (verbose) Console.WriteLine("Window '" + foundTitle + "' pinned to all desktops");
+										VirtualDesktop.Desktop.PinWindow((IntPtr)windowInfos[0].WindowHandle);
+										if (verbose) Console.WriteLine("Window '" + windowInfos[0].WindowTitle + "' pinned to all desktops");
 									}
 									catch
 									{ // error while seeking
@@ -2239,10 +2243,10 @@ namespace VDeskTool
 								{
 									try
 									{ // seeking window with window title
-										iParam = (Int32)GetWindowFromTitle(groups[2].Value.Trim().Replace("^", ""));
+										var windowInfos = GetWindowInfosFromTitle(groups[2].Value.Trim().Replace("^", ""));
 										// unpin window
-										VirtualDesktop.Desktop.UnpinWindow((IntPtr)iParam);
-										if (verbose) Console.WriteLine("Window '" + foundTitle + "' unpinned from all desktops");
+										VirtualDesktop.Desktop.UnpinWindow((IntPtr)windowInfos[0].WindowHandle);
+										if (verbose) Console.WriteLine("Window '" + windowInfos[0].WindowTitle + "' unpinned from all desktops");
 									}
 									catch
 									{ // error while seeking
@@ -2437,16 +2441,10 @@ namespace VDeskTool
 		}
 
 		static int GetMainWindowHandle(string ProcessName)
-		{ // retrieve main window handle to process name
-			System.Diagnostics.Process[] processes = System.Diagnostics.Process.GetProcessesByName(ProcessName);
-			int wHwnd = 0;
-
-			if (processes.Length > 0)
-			{ // process found, get window handle
-				wHwnd = (int)processes[0].MainWindowHandle;
-			}
-
-			return wHwnd;
+		{ 
+			// retrieve main window handle to process name
+			var processes = System.Diagnostics.Process.GetProcessesByName(ProcessName);
+			return processes.Where(p => p.MainWindowHandle != IntPtr.Zero).Select(p => p.MainWindowHandle.ToInt32()).FirstOrDefault();
 		}
 
 		private delegate bool EnumDelegate(IntPtr hWnd, int lParam);
@@ -2467,38 +2465,36 @@ namespace VDeskTool
 		private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpWindowText, int nMaxCount);
 
 		const int MAXTITLE = 255;
-		private static IntPtr foundHandle;
-		private static string foundTitle;
-		private static string searchTitle;
 
-		private static bool EnumWindowsProc(IntPtr hWnd, int lParam)
+		// Function that returns a delegate for EnumDesktopWindows that is parameterized with a search string and that doesn't use static variables
+		private static EnumDelegate GetEnumFunc(string searchFor, List<WindowInfo> windowInfos)
 		{
-			StringBuilder windowText = new StringBuilder(MAXTITLE);
-			int titleLength = GetWindowText(hWnd, windowText, windowText.Capacity + 1);
-			windowText.Length = titleLength;
-			string title = windowText.ToString();
-
-			if (!string.IsNullOrEmpty(title) && IsWindowVisible(hWnd))
+			return delegate (IntPtr hWnd, int lParam)
 			{
-				if (title.ToUpper().IndexOf(searchTitle.ToUpper()) >= 0)
+				StringBuilder windowText = new StringBuilder(MAXTITLE);
+				int titleLength = GetWindowText(hWnd, windowText, windowText.Capacity + 1);
+				windowText.Length = titleLength;
+				string title = windowText.ToString();
+
+				if (!string.IsNullOrEmpty(title) && IsWindowVisible(hWnd))
 				{
-					foundHandle = hWnd;
-					foundTitle = title;
-					return false;
+					if (title.ToUpper().IndexOf(searchFor.ToUpper()) >= 0)
+					{
+						windowInfos.Add(new WindowInfo { WindowHandle = hWnd.ToInt32(), WindowTitle = title });
+					}
 				}
-			}
-			return true;
+				return true;
+			};
 		}
 
-		private static IntPtr GetWindowFromTitle(string searchFor)
+		// GetWindowInfosFromTitle function that returns a list of window handles
+		public static List<WindowInfo> GetWindowInfosFromTitle(string searchFor)
 		{
-			searchTitle = searchFor;
-			EnumDelegate enumfunc = new EnumDelegate(EnumWindowsProc);
-
-			foundHandle = IntPtr.Zero;
-			foundTitle = "";
+			var windowInfos = new List<WindowInfo>();
+			EnumDelegate enumfunc = GetEnumFunc(searchFor, windowInfos);
 			EnumDesktopWindows(IntPtr.Zero, enumfunc, IntPtr.Zero);
-			if (foundHandle == IntPtr.Zero)
+
+			if (windowInfos.Count == 0)
 			{
 				// Get the last Win32 error code
 				int errorCode = Marshal.GetLastWin32Error();
@@ -2507,7 +2503,8 @@ namespace VDeskTool
 					Console.WriteLine("EnumDesktopWindows failed with code {0}.", errorCode);
 				}
 			}
-			return foundHandle;
+
+			return windowInfos;
 		}
 
 		private static int iListDesktop;
@@ -2608,10 +2605,19 @@ namespace VDeskTool
 			return windowList;
 		}
 
+		static readonly List<string> processNamesToExcludeDefault = new List<string>() { "WindowsTerminal" };
+
 		// RestoreWindows function that takes a list of windowInfo
-		public static void RestoreWindows(List<WindowInfo> windowInfos)
+		public static void RestoreWindows(List<WindowInfo> windowInfos, List<string> processNamesToExclude = null)
 		{
-			foreach (WindowInfo windowInfo in windowInfos)
+			var movedWindows = new HashSet<int>();
+
+			if (processNamesToExclude == null)
+			{
+				processNamesToExclude = processNamesToExcludeDefault;
+			}
+
+			foreach (WindowInfo windowInfo in windowInfos.Where(w => !processNamesToExclude.Contains(w.ProcessName)))
 			{
 				try
 				{
@@ -2621,47 +2627,68 @@ namespace VDeskTool
 					//Console.WriteLine("Restoring window1: " + windowInfo.WindowTitle);
 
 					// seeking window with window title
-					var iParam = (Int32)GetWindowFromTitle(windowInfo.WindowTitle.Trim().Replace("^", ""));
+					var windowInfos2 = GetWindowInfosFromTitle(windowInfo.WindowTitle.Trim().Replace("^", ""));
 
-					if (iParam <= 0)
+					if (windowInfos2.Count == 0)
 					{
 						Console.WriteLine("Window with text '" + windowInfo.WindowTitle + "' in title not found");
 						continue;
 					}
-					//Console.WriteLine("Restoring window2: " + iParam + " " + windowInfo.DesktopIndex + " " + windowInfo.WindowTitle);
 
-
-					// parameter is a string, search as part of desktop name
-					var iParamDesktop = VirtualDesktop.Desktop.SearchDesktop(windowInfo.DesktopName);
-					if (iParamDesktop >= 0)
-					{ 
-						// desktop found
-						if (verbose) Console.WriteLine("Virtual desktop number " + iParamDesktop.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParamDesktop) + "') selected");
-					}
-					else
-					{ 
-						// no desktop found
-						if ((windowInfo.DesktopName.ToUpper() == "LAST") || (windowInfo.DesktopName.ToUpper() == "*LAST*"))
-						{ 
-							// last desktop
-							iParam = VirtualDesktop.Desktop.Count - 1;
-							if (verbose) Console.WriteLine("Virtual desktop number " + iParamDesktop.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParamDesktop) + "') selected");
+					foreach (var windowInfo2 in windowInfos2)
+					{
+						if (movedWindows.Contains(windowInfo2.WindowHandle))
+						{
+							// Skip if the window has already been moved
+							continue;
 						}
-						else
-						{ 
-							// no desktop found
-							if (verbose) Console.WriteLine("Could not find virtual desktop with name containing '" + windowInfo.DesktopName + "'");
+
+						try
+						{
+							//Console.WriteLine("Restoring window2: " + iParam + " " + windowInfo.DesktopIndex + " " + windowInfo.WindowTitle);
+
+							// parameter is a string, search as part of desktop name
+							var iParamDesktop = VirtualDesktop.Desktop.SearchDesktop(windowInfo.DesktopName);
+							if (iParamDesktop >= 0)
+							{
+								// desktop found
+								if (verbose) Console.WriteLine("Virtual desktop number " + iParamDesktop.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParamDesktop) + "') selected");
+							}
+							else
+							{
+								// no desktop found
+								if ((windowInfo.DesktopName.ToUpper() == "LAST") || (windowInfo.DesktopName.ToUpper() == "*LAST*"))
+								{
+									// last desktop
+									iParamDesktop = VirtualDesktop.Desktop.Count - 1;
+									if (verbose) Console.WriteLine("Virtual desktop number " + iParamDesktop.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParamDesktop) + "') selected");
+								}
+								else
+								{
+									// no desktop found
+									if (verbose) Console.WriteLine("Could not find virtual desktop with name containing '" + windowInfo.DesktopName + "'");
+									continue;
+								}
+							}
+
+							windowInfo.DesktopIndex = iParamDesktop;
+
+							// move window
+							VirtualDesktop.Desktop.FromIndex(windowInfo.DesktopIndex).MoveWindow((IntPtr)windowInfo2.WindowHandle);
+							if (verbose) Console.WriteLine("Window (" + (IntPtr)windowInfo2.WindowHandle + ") " + "'" + windowInfos[0].WindowTitle + "' moved to desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
+
+							Console.WriteLine("Restored window: " + windowInfo.WindowTitle);
+
+							movedWindows.Add(windowInfo2.WindowHandle);
+						}
+						catch (Exception e)
+						{
+							Console.WriteLine($"Error moving window with title '{windowInfo.WindowTitle}': " + e.Message);
+
+							// If the window is not found, skip it
 							continue;
 						}
 					}
-;
-					windowInfo.DesktopIndex = iParamDesktop;
-
-					// move window
-					VirtualDesktop.Desktop.FromIndex(windowInfo.DesktopIndex).MoveWindow((IntPtr)iParam);
-					if (verbose) Console.WriteLine("Window (" + (IntPtr)iParam + ") " + "'" + foundTitle + "' moved to desktop number " + rc.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
-
-					Console.WriteLine("Restored window: " + windowInfo.WindowTitle);
 				}
 				catch (Exception e)
 				{

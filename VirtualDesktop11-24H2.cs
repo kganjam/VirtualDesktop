@@ -956,11 +956,24 @@ namespace VDeskTool
 								}
 								break;
 
-							case "LISTWINDOWS": // list window handles of windows shown on all desktops
+							case "LISTWINDOWHANDLES": // list window handles of windows shown on all desktops
+							case "LWH":
+								try
+								{
+									ListWindowsOnDesktop(0, detailed: false, verbose: false);
+								}
+								catch
+								{ // error while listing
+									Console.WriteLine();
+									rc = -1;
+								}
+								break;
+
+							case "LISTWINDOWS": // list window details of windows shown on all desktops
 							case "LW":
 								try
 								{
-									ListWindowsOnDesktop(0, detailed: false, verbose: true);
+									ListWindowsOnDesktop(0, detailed: true, verbose: true);
 								}
 								catch
 								{ // error while listing
@@ -1084,6 +1097,48 @@ namespace VDeskTool
 									rc = -1;
 								}
 								break;
+
+									
+							case "LISTWINDOWTITLESONDESKTOP": // list window handles of windows shown on desktop in rc
+							case "LWTOD":
+								if (verbose)
+								{
+									Console.Write("Listing handles of windows on virtual desktop number " + rc.ToString());
+									if ((rc >= 0) && (rc < VirtualDesktop.Desktop.Count)) Console.WriteLine(" (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(rc) + "')");
+								}
+
+								try
+								{ // list window handles on desktop rc
+									ListWindowsOnDesktop(rc, detailed: true, verbose: true);
+								}
+								catch
+								{ // error while listing
+									Console.WriteLine();
+									rc = -1;
+								}
+								break;
+
+							case "LISTWINDOWTITLES": // list window handles of windows shown on desktop in rc
+							case "LWT":
+								if (verbose)
+								{
+									Console.Write("Listing handles of windows on all virtual desktops");
+								}
+								
+								try
+								{ // list window handles on desktop rc
+									for (int i = 0; i < VirtualDesktop.Desktop.Count; i++)
+									{
+										ListWindowsOnDesktop(i, detailed: true, verbose: true);
+									}
+								}
+								catch
+								{ // error while listing
+									Console.WriteLine();
+									rc = -1;
+								}
+								break;
+
 
 							case "CLOSEWINDOWSONDESKTOP": // close windows shown on desktop in rc
 							case "CWOD":
@@ -1658,6 +1713,67 @@ namespace VDeskTool
 											try
 											{ // list window handles on desktop iParam
 												ListWindowsOnDesktop(iParam);
+												rc = iParam;
+											}
+											catch
+											{ // error while listing
+												rc = -1;
+											}
+										}
+										else
+										{ // no desktop found
+											if (verbose) Console.WriteLine("Could not find virtual desktop with name containing '" + groups[2].Value + "'");
+											rc = -2;
+										}
+									}
+								}
+								break;
+								
+							case "LISTWINDOWTITLESONDESKTOP": // list window handles of windows shown on desktop
+							case "LWTOD":
+								if (int.TryParse(groups[2].Value, out iParam))
+								{ // parameter is an integer, use as desktop number
+									if ((iParam >= 0) && (iParam < VirtualDesktop.Desktop.Count))
+									{ // check if parameter is in range of active desktops
+										if (verbose) Console.WriteLine("Listing handles of windows on virtual desktop number " + iParam.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParam) + "')");
+										try
+										{ // list window handles on desktop iParam
+											ListWindowsOnDesktop(iParam, detailed: true, verbose: true);
+											rc = iParam;
+										}
+										catch
+										{ // error while listing
+											rc = -1;
+										}
+									}
+									else
+										rc = -1;
+								}
+								else
+								{ // parameter is a string, search as part of desktop name
+									iParam = VirtualDesktop.Desktop.SearchDesktop(groups[2].Value);
+									if (iParam >= 0)
+									{ // desktop found
+										if (verbose) Console.WriteLine("Listing window handles of windows on virtual desktop number " + iParam.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParam) + "')");
+										try
+										{ // list window handles on desktop iParam
+											ListWindowsOnDesktop(iParam, detailed: true, verbose: true);
+											rc = iParam;
+										}
+										catch
+										{ // error while listing
+											rc = -1;
+										}
+									}
+									else
+									{ // no desktop found
+										if ((groups[2].Value.ToUpper() == "LAST") || (groups[2].Value.ToUpper() == "*LAST*"))
+										{ // last desktop
+											iParam = VirtualDesktop.Desktop.Count - 1;
+											if (verbose) Console.WriteLine("Listing window handles of windows on virtual desktop number " + iParam.ToString() + " (desktop '" + VirtualDesktop.Desktop.DesktopNameFromIndex(iParam) + "')");
+											try
+											{ // list window handles on desktop iParam
+												ListWindowsOnDesktop(iParam, detailed: true, verbose: true);
 												rc = iParam;
 											}
 											catch
@@ -2419,6 +2535,8 @@ namespace VDeskTool
 								break;
 
 							default:
+								Console.WriteLine("Unknown action");
+								Console.WriteLine("Unknown action '" + groups[1].Value + "' in '" + arg + "'");
 								rc = -2;
 								break;
 						}
@@ -2580,9 +2698,9 @@ namespace VDeskTool
 				{
 					Console.Write(iDesktopIndex);
 					Console.Write(delimiter + desktopName);
-					Console.Write(delimiter + hWnd.ToInt32());
 					Console.Write(delimiter + p.ProcessName);
 					Console.Write(delimiter + processId);
+					Console.Write(delimiter + hWnd.ToInt32());
 					Console.Write(delimiter + title);
 					Console.WriteLine();
 				}
@@ -2851,6 +2969,11 @@ namespace VDeskTool
 			Console.WriteLine("/ListWindowsOnDesktop[:<n|s>]  list handles of windows on desktop number <n>,");
 			Console.WriteLine("                   desktop with text <s> in name or desktop with number in");
 			Console.WriteLine("                   pipeline (short: /lwod).");
+			Console.WriteLine("/ListWindowTitlesOnDesktop[:<n|s>]  list titles of windows on desktop number <n>,");
+			Console.WriteLine("                   desktop with text <s> in name or desktop with number in");
+			Console.WriteLine("                   pipeline (short: /lwtod).");
+			Console.WriteLine("/ListWindows  	  list details of windows on all desktops (short: /lw).");
+			Console.WriteLine("/ListWindowHandles  list titles of windows on all desktops (short: /lwh).");
 			Console.WriteLine("/CloseWindowsOnDesktop[:<n|s>]  close windows on desktop number <n>, desktop");
 			Console.WriteLine("                   with text <s> in name or desktop with number in pipeline");
 			Console.WriteLine("                   (short: /cwod).");
